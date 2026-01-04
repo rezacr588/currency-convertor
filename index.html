@@ -3,9 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Real-Time Currency Converter</title>
+    <title>FX Live - Real-Time Currency Exchange</title>
     <link rel="stylesheet" href="styles.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💱</text></svg>">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <meta name="description" content="Real-time currency converter with live exchange rates. Convert USD, EUR, TRY, GBP, and 30+ currencies instantly.">
+    <meta name="theme-color" content="#0a0a1a">
 </head>
 <body>
     <div class="app-container">
@@ -13,9 +16,13 @@
         <header class="header">
             <div class="logo">
                 <span class="logo-icon">💱</span>
-                <h1>Currency Converter</h1>
+                <h1>FX Live</h1>
             </div>
-            <p class="tagline">Real-time exchange rates at your fingertips</p>
+            <p class="tagline">Real-Time Currency Exchange Rates</p>
+            <div class="live-indicator">
+                <span class="live-dot"></span>
+                <span>LIVE</span>
+            </div>
         </header>
 
         <!-- Main Converter Section -->
@@ -25,29 +32,30 @@
                 <h2>Convert Currency</h2>
 
                 <div class="converter-form">
-                    <!-- From Currency -->
+                    <!-- Amount Input -->
                     <div class="input-group">
                         <label for="amount">Amount</label>
                         <div class="amount-input-wrapper">
-                            <input type="number" id="amount" value="1" min="0" step="0.01" placeholder="Enter amount">
+                            <input type="number" id="amount" value="1" min="0" step="0.01" placeholder="Enter amount" inputmode="decimal">
                         </div>
                     </div>
 
+                    <!-- Currency Selectors -->
                     <div class="currency-selectors">
                         <div class="input-group">
                             <label for="fromCurrency">From</label>
-                            <select id="fromCurrency">
+                            <select id="fromCurrency" aria-label="Select source currency">
                                 <!-- Populated by JavaScript -->
                             </select>
                         </div>
 
-                        <button class="swap-btn" id="swapBtn" title="Swap currencies">
+                        <button class="swap-btn" id="swapBtn" title="Swap currencies" aria-label="Swap currencies">
                             <span>⇄</span>
                         </button>
 
                         <div class="input-group">
                             <label for="toCurrency">To</label>
-                            <select id="toCurrency">
+                            <select id="toCurrency" aria-label="Select target currency">
                                 <!-- Populated by JavaScript -->
                             </select>
                         </div>
@@ -55,9 +63,13 @@
 
                     <!-- Result Display -->
                     <div class="result-display">
-                        <div class="result-amount" id="resultAmount">0.00</div>
+                        <div class="result-amount" id="resultAmount">
+                            <span class="result-flag">🇹🇷</span>
+                            <span class="result-value">₺0.00</span>
+                            <span class="result-code">TRY</span>
+                        </div>
                         <div class="result-details" id="resultDetails">
-                            <span class="rate-info" id="rateInfo">1 USD = 0.00 EUR</span>
+                            <span class="rate-info" id="rateInfo">1 USD = -- TRY</span>
                         </div>
                     </div>
 
@@ -73,8 +85,8 @@
                 <div class="dashboard-header">
                     <h2>Live Exchange Rates</h2>
                     <div class="base-currency-selector">
-                        <label for="baseCurrency">Base Currency:</label>
-                        <select id="baseCurrency">
+                        <label for="baseCurrency">Base:</label>
+                        <select id="baseCurrency" aria-label="Select base currency">
                             <!-- Populated by JavaScript -->
                         </select>
                     </div>
@@ -84,7 +96,7 @@
                     <!-- Populated by JavaScript -->
                 </div>
 
-                <button class="refresh-btn" id="refreshBtn">
+                <button class="refresh-btn" id="refreshBtn" aria-label="Refresh exchange rates">
                     <span class="refresh-icon">🔄</span> Refresh Rates
                 </button>
             </section>
@@ -97,9 +109,9 @@
                 </div>
             </section>
 
-            <!-- Historical Comparison -->
+            <!-- Market Overview -->
             <section class="historical-section">
-                <h2>Rate Comparison</h2>
+                <h2>Market Overview</h2>
                 <div class="historical-grid" id="historicalGrid">
                     <!-- Populated by JavaScript -->
                 </div>
@@ -108,19 +120,19 @@
 
         <!-- Footer -->
         <footer class="footer">
-            <p>Data provided by <a href="https://www.frankfurter.app" target="_blank">Frankfurter API</a></p>
-            <p class="disclaimer">Exchange rates are for informational purposes only.</p>
+            <p>Data provided by <a href="https://www.frankfurter.app" target="_blank" rel="noopener">Frankfurter API</a> • Rates update automatically</p>
+            <p class="disclaimer">Exchange rates are for informational purposes only. Actual rates may vary.</p>
         </footer>
     </div>
 
     <!-- Loading Overlay -->
-    <div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-overlay" id="loadingOverlay" role="alert" aria-busy="true">
         <div class="spinner"></div>
         <p>Loading exchange rates...</p>
     </div>
 
-    <!-- Error Toast -->
-    <div class="toast" id="errorToast">
+    <!-- Toast Notification -->
+    <div class="toast" id="errorToast" role="alert">
         <span class="toast-icon">⚠️</span>
         <span class="toast-message" id="toastMessage">Error loading data</span>
     </div>
