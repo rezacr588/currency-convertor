@@ -10,11 +10,12 @@ A modern, full-stack currency converter application with real-time exchange rate
 - **Styling:** Tailwind CSS
 - **State Management:** TanStack Query (React Query)
 - **Cache:** In-memory (go-cache)
-- **Deployment:** Koyeb (backend) + Vercel (frontend)
+- **Deployment:** Koyeb (full-stack - single service)
 
-**Live URLs (after deployment):**
-- **Backend API:** `https://currency-api-<username>.koyeb.app`
-- **Frontend:** `https://currency-converter.vercel.app`
+**Live URL (after deployment):**
+- **Application:** `https://currency-converter-<username>.koyeb.app`
+
+> **Architecture:** The Go backend serves both the API and the static frontend files, allowing us to deploy everything as a single Koyeb service within the free tier.
 
 ---
 
@@ -23,9 +24,9 @@ A modern, full-stack currency converter application with real-time exchange rate
 ```
 currency-converter-v2/
 ├── frontend/                    # React + TypeScript application
-├── backend/                     # Go API server
-├── shared/                      # Shared types/contracts
+├── backend/                     # Go API server (also serves frontend)
 ├── docker-compose.yml           # Local development
+├── Dockerfile                   # Production build (full-stack)
 ├── Makefile                     # Build commands
 └── README.md
 ```
@@ -49,7 +50,8 @@ backend/
 │   │   ├── rates.go             # GET /api/v1/rates/:base
 │   │   ├── convert.go           # GET /api/v1/convert
 │   │   ├── currencies.go        # GET /api/v1/currencies
-│   │   └── historical.go        # GET /api/v1/historical/:date
+│   │   ├── historical.go        # GET /api/v1/historical/:date
+│   │   └── static.go            # Serve frontend static files
 │   ├── middleware/
 │   │   ├── cors.go              # CORS middleware
 │   │   ├── logging.go           # Request logging
@@ -69,9 +71,9 @@ backend/
 │   └── httputil/
 │       ├── response.go          # JSON response helpers
 │       └── errors.go            # Error types
+├── static/                      # Built frontend files (copied during build)
 ├── go.mod
 ├── go.sum
-├── Dockerfile
 └── .env.example
 ```
 
@@ -84,6 +86,7 @@ backend/
 | `GET` | `/api/v1/convert` | Convert amount between currencies | `ConversionResult` |
 | `GET` | `/api/v1/historical/:date` | Get historical rates for a date | `RatesResponse` |
 | `GET` | `/health` | Health check endpoint | `{ status: "ok" }` |
+| `GET` | `/*` | Serve frontend static files | HTML/JS/CSS |
 
 ### Query Parameters
 
@@ -140,6 +143,39 @@ type ErrorResponse struct {
 }
 ```
 
+### Serving Static Files (Frontend)
+
+```go
+// internal/handler/static.go
+
+package handler
+
+import (
+    "embed"
+    "io/fs"
+    "net/http"
+    "strings"
+)
+
+//go:embed static/*
+var staticFiles embed.FS
+
+func StaticHandler() http.Handler {
+    // Strip "static" prefix from embedded files
+    fsys, _ := fs.Sub(staticFiles, "static")
+    fileServer := http.FileServer(http.FS(fsys))
+
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        // Serve index.html for SPA routes (non-file requests)
+        path := r.URL.Path
+        if !strings.Contains(path, ".") {
+            r.URL.Path = "/"
+        }
+        fileServer.ServeHTTP(w, r)
+    })
+}
+```
+
 ### Configuration
 
 ```go
@@ -148,20 +184,18 @@ type Config struct {
     Environment     string        `env:"ENVIRONMENT" default:"development"`
     CacheTTL        time.Duration `env:"CACHE_TTL" default:"5m"`
     RateLimitPerMin int           `env:"RATE_LIMIT" default:"100"`
-    AllowedOrigins  []string      `env:"ALLOWED_ORIGINS"`
     FrankfurterURL  string        `env:"FRANKFURTER_URL" default:"https://api.frankfurter.app"`
 }
 ```
 
 > **Note:** We use in-memory caching (go-cache) instead of Redis to stay within Koyeb's free tier.
-> This is sufficient for a single-instance deployment. For multi-instance scaling, consider upgrading to use Koyeb's PostgreSQL or external Redis.
+> CORS is not needed since frontend and backend are served from the same origin.
 
 ### Dependencies
 
 ```
 github.com/go-chi/chi/v5        # HTTP router
-github.com/go-chi/cors          # CORS middleware
-github.com/patrickmn/go-cache   # In-memory cache (no Redis needed for free tier)
+github.com/patrickmn/go-cache   # In-memory cache
 github.com/caarlos0/env/v9      # Environment config
 github.com/rs/zerolog           # Structured logging
 golang.org/x/time/rate          # Rate limiting
@@ -236,7 +270,6 @@ frontend/
 ├── vite.config.ts
 ├── tailwind.config.js
 ├── postcss.config.js
-├── Dockerfile
 └── .env.example
 ```
 
@@ -287,7 +320,8 @@ export interface ConversionRequest {
 ```typescript
 // src/api/client.ts
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1';
+// Same origin - no need for full URL
+const API_BASE = '/api/v1';
 
 async function fetchAPI<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE}${endpoint}`, {
@@ -445,63 +479,82 @@ export function Converter() {
 
 ---
 
-## Deployment
+## Deployment (Koyeb - Full Stack)
 
-### Backend (Koyeb) - FREE TIER
+### Why Single Service Deployment?
 
-Koyeb provides a free tier with:
-- 1 Web Service (512MB RAM, 0.1 vCPU)
-- 1 PostgreSQL Database (optional)
-- Free subdomain: `*.koyeb.app`
-- Auto SSL certificates
-- No credit card required
+Koyeb's free tier includes only **1 web service**. By having the Go backend serve the frontend static files, we can deploy the entire application as a single service:
 
-#### Step 1: Create Dockerfile
+- ✅ Uses only 1 free web service
+- ✅ No CORS issues (same origin)
+- ✅ Simpler deployment
+- ✅ Single URL for everything
+- ✅ Better performance (no cross-origin requests)
 
-**backend/Dockerfile:**
+### Dockerfile (Full-Stack Build)
+
+**Dockerfile** (in repository root):
 ```dockerfile
-FROM golang:1.22-alpine AS builder
+# ============ Stage 1: Build Frontend ============
+FROM node:20-alpine AS frontend-builder
+
+WORKDIR /app/frontend
+
+# Install dependencies
+COPY frontend/package*.json ./
+RUN npm ci
+
+# Copy source and build
+COPY frontend/ ./
+RUN npm run build
+
+# ============ Stage 2: Build Backend ============
+FROM golang:1.22-alpine AS backend-builder
 
 WORKDIR /app
 
 # Install dependencies
-COPY go.mod go.sum ./
+COPY backend/go.mod backend/go.sum ./
 RUN go mod download
 
-# Copy source code
-COPY . .
+# Copy backend source
+COPY backend/ ./
 
-# Build the binary
+# Copy built frontend into backend static folder
+COPY --from=frontend-builder /app/frontend/dist ./static/
+
+# Build the binary with embedded static files
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o /api ./cmd/api
 
-# Final stage
+# ============ Stage 3: Final Image ============
 FROM alpine:3.19
 
 RUN apk --no-cache add ca-certificates tzdata
 
-COPY --from=builder /api /api
+COPY --from=backend-builder /api /api
 
 EXPOSE 8080
 
 CMD ["/api"]
 ```
 
-#### Step 2: Deploy to Koyeb
+### Deploy to Koyeb
 
-**Option A: Deploy via GitHub (Recommended)**
+#### Option A: Deploy via GitHub (Recommended)
 
 1. Push your code to GitHub
 2. Go to [Koyeb Console](https://app.koyeb.com)
 3. Click "Create App" → "GitHub"
 4. Select your repository
 5. Configure:
+   - **Name:** `currency-converter`
    - **Builder:** Dockerfile
-   - **Dockerfile path:** `backend/Dockerfile`
+   - **Dockerfile path:** `Dockerfile`
    - **Port:** 8080
    - **Region:** Frankfurt (fra) or Washington (was)
    - **Instance:** Free
 
-**Option B: Deploy via Koyeb CLI**
+#### Option B: Deploy via Koyeb CLI
 
 ```bash
 # Install Koyeb CLI
@@ -511,161 +564,62 @@ curl -fsSL https://raw.githubusercontent.com/koyeb/koyeb-cli/master/install.sh |
 koyeb login
 
 # Deploy from GitHub
-koyeb app create currency-api \
+koyeb app create currency-converter \
   --git github.com/yourusername/currency-converter-v2 \
   --git-branch main \
-  --git-workdir backend \
   --git-builder dockerfile \
   --ports 8080:http \
   --routes /:8080 \
   --regions fra \
   --instance-type free
-
-# Or deploy from Docker image
-koyeb app create currency-api \
-  --docker yourusername/currency-api:latest \
-  --ports 8080:http \
-  --routes /:8080 \
-  --regions fra \
-  --instance-type free
 ```
 
-#### Step 3: Configure Environment Variables
+### Environment Variables
 
 In Koyeb Console → Your App → Settings → Environment Variables:
 
-```
-PORT=8080
-ENVIRONMENT=production
-CACHE_TTL=5m
-RATE_LIMIT=100
-ALLOWED_ORIGINS=https://currency-converter.vercel.app,https://your-domain.com
-FRANKFURTER_URL=https://api.frankfurter.app
-```
-
-#### Step 4: Verify Deployment
-
-Your API will be available at:
-```
-https://currency-api-<your-username>.koyeb.app
-```
-
-Test endpoints:
-```bash
-# Health check
-curl https://currency-api-xxx.koyeb.app/health
-
-# Get rates
-curl https://currency-api-xxx.koyeb.app/api/v1/rates/USD
-
-# Convert currency
-curl "https://currency-api-xxx.koyeb.app/api/v1/convert?from=USD&to=EUR&amount=100"
-```
-
----
-
-### Frontend (Vercel) - FREE TIER
-
-Vercel provides:
-- Unlimited static deployments
-- Free subdomain: `*.vercel.app`
-- Auto SSL certificates
-- GitHub integration
-
-#### Step 1: Configure Vercel
-
-**frontend/vercel.json:**
-```json
-{
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
-  "framework": "vite",
-  "rewrites": [
-    {
-      "source": "/api/:path*",
-      "destination": "https://currency-api-<username>.koyeb.app/api/:path*"
-    }
-  ],
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "X-Frame-Options", "value": "DENY" }
-      ]
-    }
-  ]
-}
-```
-
-#### Step 2: Deploy to Vercel
-
-**Option A: Deploy via GitHub (Recommended)**
-
-1. Push your code to GitHub
-2. Go to [Vercel Dashboard](https://vercel.com/dashboard)
-3. Click "Add New" → "Project"
-4. Import your repository
-5. Configure:
-   - **Framework Preset:** Vite
-   - **Root Directory:** `frontend`
-   - **Build Command:** `npm run build`
-   - **Output Directory:** `dist`
-
-**Option B: Deploy via Vercel CLI**
-
-```bash
-# Install Vercel CLI
-npm i -g vercel
-
-# Login
-vercel login
-
-# Deploy
-cd frontend
-vercel --prod
-```
-
-#### Step 3: Configure Environment Variables
-
-In Vercel Dashboard → Your Project → Settings → Environment Variables:
-
-```
-VITE_API_URL=https://currency-api-<username>.koyeb.app/api/v1
-```
-
----
-
-### Environment Variables Summary
-
-**Backend (Koyeb):**
 | Variable | Value | Description |
 |----------|-------|-------------|
 | `PORT` | `8080` | Server port |
 | `ENVIRONMENT` | `production` | Environment mode |
 | `CACHE_TTL` | `5m` | Cache duration |
 | `RATE_LIMIT` | `100` | Requests per minute |
-| `ALLOWED_ORIGINS` | `https://...` | CORS origins |
 | `FRANKFURTER_URL` | `https://api.frankfurter.app` | Exchange rate API |
 
-**Frontend (Vercel):**
-| Variable | Value | Description |
-|----------|-------|-------------|
-| `VITE_API_URL` | `https://currency-api-xxx.koyeb.app/api/v1` | Backend API URL |
+### Verify Deployment
+
+Your application will be available at:
+```
+https://currency-converter-<your-username>.koyeb.app
+```
+
+Test endpoints:
+```bash
+# Frontend (should return HTML)
+curl https://currency-converter-xxx.koyeb.app/
+
+# Health check
+curl https://currency-converter-xxx.koyeb.app/health
+
+# API - Get rates
+curl https://currency-converter-xxx.koyeb.app/api/v1/rates/USD
+
+# API - Convert currency
+curl "https://currency-converter-xxx.koyeb.app/api/v1/convert?from=USD&to=EUR&amount=100"
+```
 
 ---
 
 ### Custom Domain Setup (Optional)
 
-**Koyeb (Backend):**
-1. Go to App → Settings → Domains
-2. Add your domain (e.g., `api.yourdomain.com`)
-3. Add CNAME record: `api.yourdomain.com` → `<app-name>.koyeb.app`
-
-**Vercel (Frontend):**
-1. Go to Project → Settings → Domains
-2. Add your domain (e.g., `yourdomain.com`)
-3. Add A record or CNAME as instructed
+1. Go to Koyeb Console → Your App → Settings → Domains
+2. Click "Add Domain"
+3. Enter your domain (e.g., `converter.yourdomain.com`)
+4. Add CNAME record at your DNS provider:
+   ```
+   converter.yourdomain.com → <app-name>.koyeb.app
+   ```
+5. Koyeb will automatically provision SSL certificate
 
 ---
 
@@ -673,26 +627,53 @@ VITE_API_URL=https://currency-api-<username>.koyeb.app/api/v1
 
 **.github/workflows/deploy.yml:**
 ```yaml
-name: Deploy
+name: Deploy to Koyeb
 
 on:
   push:
     branches: [main]
 
 jobs:
-  deploy-backend:
+  test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
+      # Test Backend
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: '1.22'
 
-      - name: Run tests
+      - name: Run backend tests
         working-directory: ./backend
         run: go test ./...
+
+      # Test Frontend
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Run frontend tests
+        working-directory: ./frontend
+        run: npm test --if-present
+
+      - name: Build frontend
+        working-directory: ./frontend
+        run: npm run build
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
       - name: Install Koyeb CLI
         run: curl -fsSL https://raw.githubusercontent.com/koyeb/koyeb-cli/master/install.sh | bash
@@ -701,46 +682,11 @@ jobs:
         env:
           KOYEB_TOKEN: ${{ secrets.KOYEB_TOKEN }}
         run: |
-          koyeb service redeploy currency-api/currency-api
-
-  deploy-frontend:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Install dependencies
-        working-directory: ./frontend
-        run: npm ci
-
-      - name: Build
-        working-directory: ./frontend
-        run: npm run build
-        env:
-          VITE_API_URL: ${{ secrets.VITE_API_URL }}
-
-      - name: Deploy to Vercel
-        uses: amondnet/vercel-action@v25
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          working-directory: ./frontend
-          vercel-args: '--prod'
+          koyeb service redeploy currency-converter/currency-converter
 ```
 
 **Required Secrets:**
-- `KOYEB_TOKEN`: Get from Koyeb Console → Account → API
-- `VERCEL_TOKEN`: Get from Vercel → Settings → Tokens
-- `VERCEL_ORG_ID`: Get from `.vercel/project.json`
-- `VERCEL_PROJECT_ID`: Get from `.vercel/project.json`
-- `VITE_API_URL`: Your Koyeb backend URL
+- `KOYEB_TOKEN`: Get from Koyeb Console → Account → API Tokens
 
 ---
 
@@ -755,28 +701,40 @@ version: '3.8'
 services:
   backend:
     build:
-      context: .
-      dockerfile: backend/Dockerfile
+      context: ./backend
+      dockerfile: Dockerfile.dev
     ports:
       - "8080:8080"
     environment:
       - PORT=8080
       - ENVIRONMENT=development
       - CACHE_TTL=5m
-      - ALLOWED_ORIGINS=http://localhost:5173
       - FRANKFURTER_URL=https://api.frankfurter.app
+    volumes:
+      - ./backend:/app
+    command: go run ./cmd/api
 
   frontend:
     build:
-      context: .
-      dockerfile: frontend/Dockerfile.dev
+      context: ./frontend
+      dockerfile: Dockerfile.dev
     ports:
       - "5173:5173"
-    environment:
-      - VITE_API_URL=http://localhost:8080/api/v1
     volumes:
       - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
     command: npm run dev -- --host
+```
+
+**backend/Dockerfile.dev:**
+```dockerfile
+FROM golang:1.22-alpine
+WORKDIR /app
+RUN go install github.com/air-verse/air@latest
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+CMD ["air", "-c", ".air.toml"]
 ```
 
 **frontend/Dockerfile.dev:**
@@ -790,10 +748,32 @@ EXPOSE 5173
 CMD ["npm", "run", "dev", "--", "--host"]
 ```
 
+**Vite Proxy Configuration (frontend/vite.config.ts):**
+```typescript
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+
+export default defineConfig({
+  plugins: [react()],
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
+      '/health': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
+    },
+  },
+});
+```
+
 ### Makefile Commands
 
 ```makefile
-.PHONY: dev dev-backend dev-frontend build test lint
+.PHONY: dev dev-backend dev-frontend build test lint deploy
 
 # Development
 dev:
@@ -807,7 +787,7 @@ dev-frontend:
 
 # Build
 build:
-	docker-compose build
+	docker build -t currency-converter .
 
 build-backend:
 	cd backend && go build -o bin/api ./cmd/api
@@ -818,7 +798,7 @@ build-frontend:
 # Test
 test:
 	cd backend && go test ./...
-	cd frontend && npm test
+	cd frontend && npm test --if-present
 
 # Lint
 lint:
@@ -826,18 +806,20 @@ lint:
 	cd frontend && npm run lint
 
 # Deploy
-deploy-backend:
-	koyeb service redeploy currency-api/currency-api
+deploy:
+	koyeb service redeploy currency-converter/currency-converter
 
-deploy-frontend:
-	cd frontend && vercel --prod
+# Koyeb commands
+logs:
+	koyeb service logs currency-converter/currency-converter
 
-# Koyeb specific
-koyeb-logs:
-	koyeb service logs currency-api/currency-api
+status:
+	koyeb service describe currency-converter/currency-converter
 
-koyeb-status:
-	koyeb service describe currency-api/currency-api
+# Local production test
+run-local:
+	docker build -t currency-converter . && \
+	docker run -p 8080:8080 -e PORT=8080 -e ENVIRONMENT=production currency-converter
 ```
 
 ---
@@ -850,10 +832,11 @@ koyeb-status:
 - [ ] Set up HTTP router with Chi
 - [ ] Create Frankfurter API client
 - [ ] Implement in-memory cache
-- [ ] Create handlers for all endpoints
-- [ ] Add middleware (CORS, logging, rate limiting)
+- [ ] Create handlers for all API endpoints
+- [ ] Add static file serving handler
+- [ ] Add middleware (logging, rate limiting)
 - [ ] Write unit tests
-- [ ] Create Dockerfile
+- [ ] Create development Dockerfile
 
 ### Phase 2: Frontend Foundation
 - [ ] Initialize Vite + React + TypeScript project
@@ -862,6 +845,7 @@ koyeb-status:
 - [ ] Create API client with types
 - [ ] Implement custom hooks
 - [ ] Build UI components library
+- [ ] Configure Vite proxy for development
 
 ### Phase 3: Feature Implementation
 - [ ] Converter component with real-time conversion
@@ -879,12 +863,12 @@ koyeb-status:
 - [ ] Accessibility improvements
 
 ### Phase 5: Deployment
+- [ ] Create production Dockerfile (multi-stage)
 - [ ] Create Koyeb account (no credit card needed)
-- [ ] Deploy Go backend to Koyeb
-- [ ] Set up Vercel for frontend
-- [ ] Configure environment variables on both platforms
+- [ ] Deploy full-stack app to Koyeb
+- [ ] Configure environment variables
 - [ ] Set up CI/CD with GitHub Actions
-- [ ] Configure custom domains (optional)
+- [ ] Configure custom domain (optional)
 
 ---
 
@@ -905,6 +889,7 @@ koyeb-status:
 - [Frankfurter API Documentation](https://www.frankfurter.app/docs/)
 - [Go Chi Router](https://go-chi.io/)
 - [Go-cache (In-memory caching)](https://github.com/patrickmn/go-cache)
+- [Go Embed Static Files](https://pkg.go.dev/embed)
 
 ### Frontend
 - [TanStack Query](https://tanstack.com/query)
@@ -915,7 +900,7 @@ koyeb-status:
 - [Koyeb Documentation](https://www.koyeb.com/docs)
 - [Koyeb CLI Reference](https://www.koyeb.com/docs/cli)
 - [Koyeb Go Deployment Guide](https://www.koyeb.com/docs/deploy/go)
-- [Vercel Documentation](https://vercel.com/docs)
+- [Koyeb Docker Deployment](https://www.koyeb.com/docs/deploy/docker)
 
 ### Free Tier Limits (Koyeb)
 - **Web Service:** 1 free (512MB RAM, 0.1 vCPU, 2GB SSD)
