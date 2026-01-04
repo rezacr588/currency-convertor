@@ -3,34 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FX Live - Real-Time Currency Exchange</title>
+    <title>Currency Converter</title>
     <link rel="stylesheet" href="styles.css">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💱</text></svg>">
+    <link rel="icon" href="icons/icon-192.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="icons/icon-192.svg">
+    <link rel="manifest" href="manifest.json">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <meta name="description" content="Real-time currency converter with live exchange rates. Convert USD, EUR, TRY, GBP, and 30+ currencies instantly.">
-    <meta name="theme-color" content="#0a0a1a">
+    <meta name="description" content="Real-time currency converter with live exchange rates.">
+    <meta name="theme-color" content="#6366f1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 </head>
 <body>
     <div class="app-container">
-        <!-- Header -->
-        <header class="header">
-            <div class="logo">
-                <span class="logo-icon">💱</span>
-                <h1>FX Live</h1>
-            </div>
-            <p class="tagline">Real-Time Currency Exchange Rates</p>
-            <div class="live-indicator">
-                <span class="live-dot"></span>
-                <span>LIVE</span>
-            </div>
-        </header>
-
         <!-- Main Converter Section -->
         <main class="main-content">
             <!-- Converter Card -->
             <section class="converter-card">
-                <h2>Convert Currency</h2>
-
                 <div class="converter-form">
                     <!-- Amount Input -->
                     <div class="input-group">
@@ -75,7 +64,7 @@
 
                     <!-- Last Updated -->
                     <div class="last-updated" id="lastUpdated">
-                        Last updated: --
+                        Updated: --
                     </div>
                 </div>
             </section>
@@ -83,7 +72,7 @@
             <!-- Live Rates Dashboard -->
             <section class="rates-dashboard">
                 <div class="dashboard-header">
-                    <h2>Live Exchange Rates</h2>
+                    <h2>Live Rates</h2>
                     <div class="base-currency-selector">
                         <label for="baseCurrency">Base:</label>
                         <select id="baseCurrency" aria-label="Select base currency">
@@ -97,13 +86,13 @@
                 </div>
 
                 <button class="refresh-btn" id="refreshBtn" aria-label="Refresh exchange rates">
-                    <span class="refresh-icon">🔄</span> Refresh Rates
+                    <span class="refresh-icon">🔄</span> Refresh
                 </button>
             </section>
 
             <!-- Quick Conversion Cards -->
             <section class="quick-convert">
-                <h2>Quick Conversions</h2>
+                <h2>Quick Convert</h2>
                 <div class="quick-convert-grid" id="quickConvertGrid">
                     <!-- Populated by JavaScript -->
                 </div>
@@ -111,24 +100,18 @@
 
             <!-- Market Overview -->
             <section class="historical-section">
-                <h2>Market Overview</h2>
+                <h2>Trends</h2>
                 <div class="historical-grid" id="historicalGrid">
                     <!-- Populated by JavaScript -->
                 </div>
             </section>
         </main>
-
-        <!-- Footer -->
-        <footer class="footer">
-            <p>Data provided by <a href="https://www.frankfurter.app" target="_blank" rel="noopener">Frankfurter API</a> • Rates update automatically</p>
-            <p class="disclaimer">Exchange rates are for informational purposes only. Actual rates may vary.</p>
-        </footer>
     </div>
 
     <!-- Loading Overlay -->
     <div class="loading-overlay" id="loadingOverlay" role="alert" aria-busy="true">
         <div class="spinner"></div>
-        <p>Loading exchange rates...</p>
+        <p>Loading rates...</p>
     </div>
 
     <!-- Toast Notification -->
@@ -138,5 +121,10 @@
     </div>
 
     <script src="app.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./sw.js');
+        }
+    </script>
 </body>
 </html>
