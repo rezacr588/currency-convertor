@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time Currency Converter</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <span class="logo-icon">💱</span>
+                <h1>Currency Converter</h1>
+            </div>
+            <p class="tagline">Real-time exchange rates at your fingertips</p>
+        </header>
+
+        <!-- Main Converter Section -->
+        <main class="main-content">
+            <!-- Converter Card -->
+            <section class="converter-card">
+                <h2>Convert Currency</h2>
+
+                <div class="converter-form">
+                    <!-- From Currency -->
+                    <div class="input-group">
+                        <label for="amount">Amount</label>
+                        <div class="amount-input-wrapper">
+                            <input type="number" id="amount" value="1" min="0" step="0.01" placeholder="Enter amount">
+                        </div>
+                    </div>
+
+                    <div class="currency-selectors">
+                        <div class="input-group">
+                            <label for="fromCurrency">From</label>
+                            <select id="fromCurrency">
+                                <!-- Populated by JavaScript -->
+                            </select>
+                        </div>
+
+                        <button class="swap-btn" id="swapBtn" title="Swap currencies">
+                            <span>⇄</span>
+                        </button>
+
+                        <div class="input-group">
+                            <label for="toCurrency">To</label>
+                            <select id="toCurrency">
+                                <!-- Populated by JavaScript -->
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Result Display -->
+                    <div class="result-display">
+                        <div class="result-amount" id="resultAmount">0.00</div>
+                        <div class="result-details" id="resultDetails">
+                            <span class="rate-info" id="rateInfo">1 USD = 0.00 EUR</span>
+                        </div>
+                    </div>
+
+                    <!-- Last Updated -->
+                    <div class="last-updated" id="lastUpdated">
+                        Last updated: --
+                    </div>
+                </div>
+            </section>
+
+            <!-- Live Rates Dashboard -->
+            <section class="rates-dashboard">
+                <div class="dashboard-header">
+                    <h2>Live Exchange Rates</h2>
+                    <div class="base-currency-selector">
+                        <label for="baseCurrency">Base Currency:</label>
+                        <select id="baseCurrency">
+                            <!-- Populated by JavaScript -->
+                        </select>
+                    </div>
+                </div>
+
+                <div class="rates-grid" id="ratesGrid">
+                    <!-- Populated by JavaScript -->
+                </div>
+
+                <button class="refresh-btn" id="refreshBtn">
+                    <span class="refresh-icon">🔄</span> Refresh Rates
+                </button>
+            </section>
+
+            <!-- Quick Conversion Cards -->
+            <section class="quick-convert">
+                <h2>Quick Conversions</h2>
+                <div class="quick-convert-grid" id="quickConvertGrid">
+                    <!-- Populated by JavaScript -->
+                </div>
+            </section>
+
+            <!-- Historical Comparison -->
+            <section class="historical-section">
+                <h2>Rate Comparison</h2>
+                <div class="historical-grid" id="historicalGrid">
+                    <!-- Populated by JavaScript -->
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>Data provided by <a href="https://www.frankfurter.app" target="_blank">Frankfurter API</a></p>
+            <p class="disclaimer">Exchange rates are for informational purposes only.</p>
+        </footer>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <p>Loading exchange rates...</p>
+    </div>
+
+    <!-- Error Toast -->
+    <div class="toast" id="errorToast">
+        <span class="toast-icon">⚠️</span>
+        <span class="toast-message" id="toastMessage">Error loading data</span>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
