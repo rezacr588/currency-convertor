@@ -3,45 +3,86 @@
 
 const API_BASE = 'https://api.frankfurter.app';
 
+// SVG Icon Generator
+const Icons = {
+    currency: (code, size = 24) => {
+        const colors = {
+            USD: ['#3b82f6', '#1d4ed8'], EUR: ['#6366f1', '#4338ca'], GBP: ['#8b5cf6', '#6d28d9'],
+            TRY: ['#ef4444', '#dc2626'], JPY: ['#f43f5e', '#e11d48'], CHF: ['#f97316', '#ea580c'],
+            CNY: ['#eab308', '#ca8a04'], AUD: ['#22c55e', '#16a34a'], CAD: ['#14b8a6', '#0d9488'],
+            INR: ['#f59e0b', '#d97706'], KRW: ['#ec4899', '#db2777'], SGD: ['#06b6d4', '#0891b2'],
+            HKD: ['#a855f7', '#9333ea'], NZD: ['#10b981', '#059669'], SEK: ['#0ea5e9', '#0284c7'],
+            NOK: ['#3b82f6', '#2563eb'], DKK: ['#ef4444', '#dc2626'], MXN: ['#22c55e', '#15803d'],
+            ZAR: ['#f59e0b', '#b45309'], BRL: ['#22c55e', '#16a34a'], RUB: ['#3b82f6', '#1d4ed8'],
+            PLN: ['#dc2626', '#b91c1c'], THB: ['#6366f1', '#4f46e5'], IDR: ['#ef4444', '#dc2626'],
+            MYR: ['#fbbf24', '#f59e0b'], PHP: ['#3b82f6', '#1d4ed8'], CZK: ['#3b82f6', '#dc2626'],
+            HUF: ['#22c55e', '#dc2626'], ILS: ['#3b82f6', '#1d4ed8'], RON: ['#fbbf24', '#3b82f6'],
+            BGN: ['#22c55e', '#dc2626'], ISK: ['#3b82f6', '#dc2626'], HRK: ['#dc2626', '#3b82f6']
+        };
+        const [c1, c2] = colors[code] || ['#6366f1', '#4338ca'];
+        return `<svg width="${size}" height="${size}" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs><linearGradient id="grad-${code}" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style="stop-color:${c1}"/><stop offset="100%" style="stop-color:${c2}"/>
+            </linearGradient></defs>
+            <rect width="32" height="32" rx="8" fill="url(#grad-${code})"/>
+            <text x="16" y="21" text-anchor="middle" fill="white" font-family="var(--font-mono)" font-size="11" font-weight="600">${code}</text>
+        </svg>`;
+    },
+    swap: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16V4M7 4L3 8M7 4l4 4M17 8v12M17 20l4-4M17 20l-4-4"/></svg>`,
+    refresh: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 11-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>`,
+    arrowUp: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>`,
+    arrowDown: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>`,
+    chevronDown: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>`,
+    clock: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>`,
+    check: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>`,
+    warning: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>`,
+    arrowRight: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>`
+};
+
 // Comprehensive Currency Information
 const CURRENCY_INFO = {
     // Major Currencies
-    USD: { flag: '🇺🇸', name: 'US Dollar', symbol: '$', priority: 1 },
-    EUR: { flag: '🇪🇺', name: 'Euro', symbol: '€', priority: 1 },
-    GBP: { flag: '🇬🇧', name: 'British Pound', symbol: '£', priority: 1 },
-    TRY: { flag: '🇹🇷', name: 'Turkish Lira', symbol: '₺', priority: 1 },
-    JPY: { flag: '🇯🇵', name: 'Japanese Yen', symbol: '¥', priority: 1 },
-    CHF: { flag: '🇨🇭', name: 'Swiss Franc', symbol: 'Fr', priority: 1 },
-    CNY: { flag: '🇨🇳', name: 'Chinese Yuan', symbol: '¥', priority: 1 },
+    USD: { name: 'US Dollar', symbol: '$', priority: 1 },
+    EUR: { name: 'Euro', symbol: '€', priority: 1 },
+    GBP: { name: 'British Pound', symbol: '£', priority: 1 },
+    TRY: { name: 'Turkish Lira', symbol: '₺', priority: 1 },
+    JPY: { name: 'Japanese Yen', symbol: '¥', priority: 1 },
+    CHF: { name: 'Swiss Franc', symbol: 'Fr', priority: 1 },
+    CNY: { name: 'Chinese Yuan', symbol: '¥', priority: 1 },
     // Secondary Currencies
-    AUD: { flag: '🇦🇺', name: 'Australian Dollar', symbol: 'A$', priority: 2 },
-    CAD: { flag: '🇨🇦', name: 'Canadian Dollar', symbol: 'C$', priority: 2 },
-    INR: { flag: '🇮🇳', name: 'Indian Rupee', symbol: '₹', priority: 2 },
-    KRW: { flag: '🇰🇷', name: 'South Korean Won', symbol: '₩', priority: 2 },
-    SGD: { flag: '🇸🇬', name: 'Singapore Dollar', symbol: 'S$', priority: 2 },
-    HKD: { flag: '🇭🇰', name: 'Hong Kong Dollar', symbol: 'HK$', priority: 2 },
-    NZD: { flag: '🇳🇿', name: 'New Zealand Dollar', symbol: 'NZ$', priority: 2 },
-    SEK: { flag: '🇸🇪', name: 'Swedish Krona', symbol: 'kr', priority: 2 },
-    NOK: { flag: '🇳🇴', name: 'Norwegian Krone', symbol: 'kr', priority: 2 },
-    DKK: { flag: '🇩🇰', name: 'Danish Krone', symbol: 'kr', priority: 2 },
+    AUD: { name: 'Australian Dollar', symbol: 'A$', priority: 2 },
+    CAD: { name: 'Canadian Dollar', symbol: 'C$', priority: 2 },
+    INR: { name: 'Indian Rupee', symbol: '₹', priority: 2 },
+    KRW: { name: 'South Korean Won', symbol: '₩', priority: 2 },
+    SGD: { name: 'Singapore Dollar', symbol: 'S$', priority: 2 },
+    HKD: { name: 'Hong Kong Dollar', symbol: 'HK$', priority: 2 },
+    NZD: { name: 'New Zealand Dollar', symbol: 'NZ$', priority: 2 },
+    SEK: { name: 'Swedish Krona', symbol: 'kr', priority: 2 },
+    NOK: { name: 'Norwegian Krone', symbol: 'kr', priority: 2 },
+    DKK: { name: 'Danish Krone', symbol: 'kr', priority: 2 },
     // Emerging Markets
-    MXN: { flag: '🇲🇽', name: 'Mexican Peso', symbol: '$', priority: 3 },
-    ZAR: { flag: '🇿🇦', name: 'South African Rand', symbol: 'R', priority: 3 },
-    BRL: { flag: '🇧🇷', name: 'Brazilian Real', symbol: 'R$', priority: 3 },
-    RUB: { flag: '🇷🇺', name: 'Russian Ruble', symbol: '₽', priority: 3 },
-    PLN: { flag: '🇵🇱', name: 'Polish Zloty', symbol: 'zł', priority: 3 },
-    THB: { flag: '🇹🇭', name: 'Thai Baht', symbol: '฿', priority: 3 },
-    IDR: { flag: '🇮🇩', name: 'Indonesian Rupiah', symbol: 'Rp', priority: 3 },
-    MYR: { flag: '🇲🇾', name: 'Malaysian Ringgit', symbol: 'RM', priority: 3 },
-    PHP: { flag: '🇵🇭', name: 'Philippine Peso', symbol: '₱', priority: 3 },
-    CZK: { flag: '🇨🇿', name: 'Czech Koruna', symbol: 'Kč', priority: 3 },
-    HUF: { flag: '🇭🇺', name: 'Hungarian Forint', symbol: 'Ft', priority: 3 },
-    ILS: { flag: '🇮🇱', name: 'Israeli Shekel', symbol: '₪', priority: 3 },
-    RON: { flag: '🇷🇴', name: 'Romanian Leu', symbol: 'lei', priority: 3 },
-    BGN: { flag: '🇧🇬', name: 'Bulgarian Lev', symbol: 'лв', priority: 3 },
-    ISK: { flag: '🇮🇸', name: 'Icelandic Krona', symbol: 'kr', priority: 3 },
-    HRK: { flag: '🇭🇷', name: 'Croatian Kuna', symbol: 'kn', priority: 3 }
+    MXN: { name: 'Mexican Peso', symbol: '$', priority: 3 },
+    ZAR: { name: 'South African Rand', symbol: 'R', priority: 3 },
+    BRL: { name: 'Brazilian Real', symbol: 'R$', priority: 3 },
+    RUB: { name: 'Russian Ruble', symbol: '₽', priority: 3 },
+    PLN: { name: 'Polish Zloty', symbol: 'zł', priority: 3 },
+    THB: { name: 'Thai Baht', symbol: '฿', priority: 3 },
+    IDR: { name: 'Indonesian Rupiah', symbol: 'Rp', priority: 3 },
+    MYR: { name: 'Malaysian Ringgit', symbol: 'RM', priority: 3 },
+    PHP: { name: 'Philippine Peso', symbol: '₱', priority: 3 },
+    CZK: { name: 'Czech Koruna', symbol: 'Kč', priority: 3 },
+    HUF: { name: 'Hungarian Forint', symbol: 'Ft', priority: 3 },
+    ILS: { name: 'Israeli Shekel', symbol: '₪', priority: 3 },
+    RON: { name: 'Romanian Leu', symbol: 'lei', priority: 3 },
+    BGN: { name: 'Bulgarian Lev', symbol: 'лв', priority: 3 },
+    ISK: { name: 'Icelandic Krona', symbol: 'kr', priority: 3 },
+    HRK: { name: 'Croatian Kuna', symbol: 'kn', priority: 3 }
 };
+
+// Helper to get currency icon
+function getCurrencyIcon(code, size = 24) {
+    return Icons.currency(code, size);
+}
 
 // Popular Trading Pairs
 const TRADING_PAIRS = [
@@ -160,7 +201,7 @@ function getDateString(daysAgo = 0) {
 }
 
 function getCurrencyInfo(code) {
-    return CURRENCY_INFO[code] || { flag: '💰', name: code, symbol: '', priority: 9 };
+    return CURRENCY_INFO[code] || { name: code, symbol: '', priority: 9 };
 }
 
 function debounce(func, wait) {
@@ -326,10 +367,10 @@ class SearchableSelect {
     updateDisplay() {
         const info = getCurrencyInfo(this.selectedValue);
         this.display.innerHTML = `
-            <span class="select-flag">${info.flag}</span>
+            <span class="select-flag">${getCurrencyIcon(this.selectedValue, 28)}</span>
             <span class="select-code">${this.selectedValue}</span>
             <span class="select-name">${info.name}</span>
-            <span class="select-arrow">▼</span>
+            <span class="select-arrow">${Icons.chevronDown}</span>
         `;
     }
 
@@ -366,10 +407,10 @@ class SearchableSelect {
                     const isSelected = code === this.selectedValue;
                     html += `
                         <div class="option-item ${isSelected ? 'selected' : ''}" data-value="${code}">
-                            <span class="option-flag">${info.flag}</span>
+                            <span class="option-flag">${getCurrencyIcon(code, 24)}</span>
                             <span class="option-code">${code}</span>
                             <span class="option-name">${info.name}</span>
-                            ${isSelected ? '<span class="option-check">✓</span>' : ''}
+                            ${isSelected ? `<span class="option-check">${Icons.check}</span>` : ''}
                         </div>
                     `;
                 });
@@ -478,13 +519,13 @@ function updateRatesGrid() {
         const rate = state.rates[code] || 0;
         const change = (Math.random() - 0.5) * 2; // Simulated change for display
         const changeClass = change >= 0 ? 'positive' : 'negative';
-        const changeIcon = change >= 0 ? '↑' : '↓';
+        const changeIcon = change >= 0 ? Icons.arrowUp : Icons.arrowDown;
 
         return `
             <div class="rate-card" style="animation-delay: ${index * 0.05}s" onclick="quickSetPair('${state.baseCurrency}', '${code}')">
                 <div class="rate-card-header">
                     <div class="currency-code">
-                        <span class="flag">${info.flag}</span>
+                        <span class="flag">${getCurrencyIcon(code, 28)}</span>
                         <span class="code">${code}</span>
                     </div>
                     <span class="rate-change ${changeClass}">${changeIcon} ${Math.abs(change).toFixed(2)}%</span>
@@ -501,7 +542,7 @@ function updateRatesGrid() {
 
     // Update last updated time
     if (state.lastUpdate) {
-        elements.lastUpdated.textContent = `Last updated: ${formatTime(state.lastUpdate)}`;
+        elements.lastUpdated.innerHTML = `${Icons.clock} Updated: ${formatTime(state.lastUpdate)}`;
     }
 }
 
@@ -526,9 +567,9 @@ function createQuickConvertCards() {
         return `
             <div class="quick-convert-card" style="animation-delay: ${index * 0.05}s">
                 <div class="pair">
-                    <span class="pair-from">${fromInfo.flag} ${pair.from}</span>
-                    <span class="arrow">⇄</span>
-                    <span class="pair-to">${toInfo.flag} ${pair.to}</span>
+                    <span class="pair-from">${getCurrencyIcon(pair.from, 20)} ${pair.from}</span>
+                    <span class="arrow">${Icons.arrowRight}</span>
+                    <span class="pair-to">${getCurrencyIcon(pair.to, 20)} ${pair.to}</span>
                 </div>
                 <input
                     type="number"
@@ -600,7 +641,7 @@ async function createHistoricalCards() {
 
         const formatChange = (change) => {
             if (change === null) return { text: 'N/A', class: '', icon: '' };
-            const icon = change >= 0 ? '▲' : '▼';
+            const icon = change >= 0 ? Icons.arrowUp : Icons.arrowDown;
             return {
                 text: `${Math.abs(change).toFixed(2)}%`,
                 class: change >= 0 ? 'positive' : 'negative',
@@ -614,7 +655,7 @@ async function createHistoricalCards() {
         return `
             <div class="historical-card" style="animation-delay: ${index * 0.1}s">
                 <div class="pair-info">
-                    <span class="pair-flags">${fromInfo.flag}${toInfo.flag}</span>
+                    <span class="pair-flags">${getCurrencyIcon(pair.from, 22)}${getCurrencyIcon(pair.to, 22)}</span>
                     <span class="pair-codes">${pair.from}/${pair.to}</span>
                 </div>
                 <div class="current-rate">
@@ -652,7 +693,7 @@ async function performConversion() {
     const to = state.toCurrency;
 
     if (amount <= 0) {
-        elements.resultAmount.textContent = `${getCurrencyInfo(to).flag} 0.00`;
+        elements.resultAmount.innerHTML = `${getCurrencyIcon(to, 32)} <span class="result-value">0.00</span>`;
         elements.rateInfo.textContent = `1 ${from} = -- ${to}`;
         return;
     }
@@ -663,7 +704,7 @@ async function performConversion() {
         const toInfo = getCurrencyInfo(to);
 
         elements.resultAmount.innerHTML = `
-            <span class="result-flag">${toInfo.flag}</span>
+            <span class="result-flag">${getCurrencyIcon(to, 36)}</span>
             <span class="result-value">${toInfo.symbol}${formatNumber(result.amount)}</span>
             <span class="result-code">${to}</span>
         `;
@@ -672,7 +713,7 @@ async function performConversion() {
             <span class="rate-equals">=</span>
             <span class="rate-to">${formatNumber(result.rate, 6)} ${to}</span>
         `;
-        elements.lastUpdated.textContent = `Last updated: ${formatTime(new Date())}`;
+        elements.lastUpdated.innerHTML = `${Icons.clock} Updated: ${formatTime(new Date())}`;
     } catch (error) {
         elements.resultAmount.textContent = 'Error';
         elements.rateInfo.textContent = 'Failed to fetch rate';
